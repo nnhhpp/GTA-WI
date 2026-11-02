@@ -24,7 +24,8 @@ PORTRAITS = {'claude': 'playerp', 'eight': 'eight'}
 # sound effects from audio\sfx.RAW (sample numbers in the game's bank order; LEFT channel of the stereo pairs):
 # name -> (sample, longest seconds kept). The game plays them as /a/s_<name>.wav (8-bit, 11 kHz)
 SFX = {'pistol': (67, 0.45), 'uzi': (73, 0.16), 'shotgun': (86, 0.75), 'ak47': (71, 0.16), 'm16': (69, 0.14),
-       'boom': (456, 1.7)}
+       'boom': (456, 1.7), 'crash': (141, 0.6)}      # 141 = a car-on-car collision
+SFX_PEAK = 0.675                                # loudest sample level (1 = full scale); v0.7.5: 25% quieter than 0.9
 
 # loose files (relative to the GTA III folder, any case) -> work/gta3/<same path, lower case>
 LOOSE = ['models/hud.txd', 'models/fonts.txd', 'models/menu.txd', 'models/misc.txd', 'models/generic.txd',

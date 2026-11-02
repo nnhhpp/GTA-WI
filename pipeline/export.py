@@ -404,13 +404,13 @@ if mt: shutil.copyfile(mt[0], P('a', 'theme.mid'))
 tracks = sorted(f for f in glob.glob(os.path.join(MUS, '*.mid')) if re.match(r'track\d+\.mid$', os.path.basename(f).lower()))
 for i_, f in enumerate(tracks): shutil.copyfile(f, P('a', 'r%d.mid' % i_))
 stats['music'] = dict(theme=bool(mt), radio=len(tracks))
-# sound effects (extract.py took them out of YOUR audio\\sfx.RAW): small 8-bit WAVs the game plays for guns + explosions
+# sound effects (extract.py took them out of YOUR audio\\sfx.RAW): small 8-bit WAVs the game plays for guns, explosions + crashes
 import sfx as SFX_
 for nm_, (_, mx_) in A.SFX.items():
     f_ = os.path.join(GTA, 'sfx', nm_ + '.wav')
     if os.path.exists(f_):
         x_, r_ = SFX_.read_wav16(f_)
-        open(P('a', 's_%s.wav' % nm_), 'wb').write(SFX_.phone_wav(x_, r_, max_s=mx_, fade_s=min(0.4, mx_ * 0.3)))
+        open(P('a', 's_%s.wav' % nm_), 'wb').write(SFX_.phone_wav(x_, r_, max_s=mx_, fade_s=min(0.4, mx_ * 0.3), peak=A.SFX_PEAK))
 stats['sfx'] = sorted(n_ for n_ in os.listdir(P('a')) if n_.startswith('s_'))
 # GTA WI ("What If"): the logo's red III box becomes WI - same red and white, same stem weight
 lg = np.array(Image.open(P('u', 'logo.png')).convert('RGBA'))
@@ -620,7 +620,6 @@ NEW = {
  'WI_AMMO': "Run them over to pick up ammo.",
  'WI_BUSTED': "BUSTED",
  'WI_TIME': "SURVIVED",
- 'WI_GETOUT': "GET OUT!",
  'WI_MISTY1': "MISTY: You Luigi's new driver? He said someone would pick me up from the clinic... guess not.",
  'WI_MISTY2': "MISTY: Still waiting here, sugar. Go do your thing.",
 }

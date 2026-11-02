@@ -5,3 +5,7 @@ music/*.mid
 *.log
 __pycache__/
 *.pyc
+# FreeJ2ME settings + saved records, made when run.bat plays the game
+config/
+freej2me_system/
+rms/

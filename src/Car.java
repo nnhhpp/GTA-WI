@@ -73,7 +73,9 @@ public final class Car extends Mob {
         }
         return imp;
     }
-    float hit(float imp) { if (imp > 4 * M) damage += imp / M * 0.4f; return imp; }    // cars are twice as tough as in v0.5
+    static final float TOUGH = 1 / 1.2f;                    // v0.7.5: every car (yours, cops, traffic) takes 20% more punishment
+    void hurt(float d) { damage += d * TOUGH; }
+    float hit(float imp) { if (imp > 4 * M) hurt(imp / M * 0.4f); return imp; }    // cars are twice as tough as in v0.5
 
     public boolean fits(MapR m) {
         float fx = dirX(), fy = dirY(), rx = -fy, ry = fx;

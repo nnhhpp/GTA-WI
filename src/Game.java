@@ -469,7 +469,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         if (car != null) {
             car.physics(map, dt, 27);
             if (car.drift > 0.35f && (car.speed() > 0.5f * M || Math.abs(car.w) > 1)) tyreSmoke(car, dt);
-            if (car.imp > 4 * M) { sparks(car.impX, car.impY, Math.min(10, 2 + (int) (car.imp / (3 * M))), Math.min(1.6f, car.imp / (10 * M))); }
+            if (car.imp > 4 * M) { sparks(car.impX, car.impY, Math.min(10, 2 + (int) (car.imp / (3 * M))), Math.min(1.6f, car.imp / (10 * M))); sfx(SFX_CRASH); }
             car.imp = 0;
             carVsPoles(car);
             if (car.damage >= 100 && car.fireT <= 0) { car.fireT = 3.5f; help = txt("WRECKED"); helpT = 3; }
@@ -507,7 +507,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
                 float lvx = (k.x - ox) / Math.max(dt, 0.001f), lvy = (k.y - oy) / Math.max(dt, 0.001f); k.vx = k.vy = 0;
                 if (total - ipS < 400 && help == null) { help = txt("WI_8B"); helpT = 3; }
                 camTo(k.x + lvx * 0.3f, k.y + lvy * 0.3f, dt, 4);
-                if (ipS >= total) { phase = 2; phT = 0; crash(k); }
+                if (ipS >= total) { phase = 2; phT = 0; crash(k); sfx(SFX_CRASH); }
                 break;
             }
             case 2:   // smoking wreck, Claude climbs out
@@ -612,7 +612,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
                 float dx = o.x - c.x, dy = o.y - c.y, d = (float) Math.sqrt(dx * dx + dy * dy), r = 7 * M;
                 if (d >= r) continue;
                 float f = 1 - d / r; d = Math.max(1, d);
-                o.damage += 25 + 70 * f; o.vx += dx / d * 140 * f; o.vy += dy / d * 140 * f; o.w += (rf() - 0.5f) * 3 * f;
+                o.hurt(25 + 70 * f); o.vx += dx / d * 140 * f; o.vy += dy / d * 140 * f; o.w += (rf() - 0.5f) * 3 * f;
                 if (o.ai && !o.cop) o.loose = 1.2f + rf();
                 if (o.cop) o.spd *= 0.3f;
                 if (o.damage >= 100 && o.fireT <= 0) o.fireT = o == car ? 3.5f : 1.0f + rf() * 1.2f;   // a chain reaction never blows YOUR car up without warning
@@ -785,7 +785,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
             if (rf() < hit) { hurt(tgt, W_DMG[w], false); aimHit = true; }
         } else {                         // shoot cars in front
             Car c = carAhead(claude.x, claude.y, fx, fy, reach);
-            if (c != null) { c.damage += W_DMG[w] * 0.06f; aimX = c.x; aimY = c.y; aimHit = true; aimShowC = c; if (c.damage >= 100 && c.fireT <= 0 && !c.wreck) c.fireT = 3; }
+            if (c != null) { c.hurt(W_DMG[w] * 0.06f); aimX = c.x; aimY = c.y; aimHit = true; aimShowC = c; if (c.damage >= 100 && c.fireT <= 0 && !c.wreck) c.fireT = 3; }
         }
         if (ammo[w] <= 0 && w != W_FIST) { int k = W_PISTOL; weapon = ammo[k] > 0 ? k : W_FIST; }
     }
@@ -827,7 +827,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
             float al = dx * fx + dy * fy, sd = -dx * fy + dy * fx, r = map.pR[i];
             if (Math.abs(al) > c.hl + r || Math.abs(sd) > c.hw + r) continue;
             float sp = c.speed();
-            if (sp > 3.5f * M) { map.pDown[i] = true; c.vx *= 0.82f; c.vy *= 0.82f; c.damage += 2; vibrate(60); sparks(map.pFx[i], map.pFoot[i], 6, Math.min(1.4f, sp / (12 * M))); }
+            if (sp > 3.5f * M) { map.pDown[i] = true; c.vx *= 0.82f; c.vy *= 0.82f; c.hurt(2); vibrate(60); if (c == car || vis(map.pFx[i], map.pFoot[i])) sfx(SFX_CRASH); sparks(map.pFx[i], map.pFoot[i], 6, Math.min(1.4f, sp / (12 * M))); }
             else {   // push the car out along the shallower axis
                 float el = c.hl + r - Math.abs(al), es = c.hw + r - Math.abs(sd);
                 if (el < es) { float m = el * (al >= 0 ? -1 : 1); c.move(map, fx * m, fy * m); }
@@ -871,10 +871,10 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     void addBody(Ped p) { int i = deadN % deadX.length; deadN++; deadX[i] = p.x; deadY[i] = p.y; deadT[i] = p.type; deadF[i] = rnd.nextInt(4); }
     long vibT;
     void vibrate(int ms) { long n = System.currentTimeMillis(); if (!sound || n - vibT < 600) return; vibT = n; try { Display.getDisplay(midlet).vibrate(ms); } catch (Throwable t) { } }
-    // ------------------------------------------------------------------ sound effects: GTA III's own gun + explosion sounds (the build makes a/s_*.wav)
-    static final String[] SFX = {"", "pistol", "uzi", "shotgun", "ak47", "m16", "boom"};   // index = weapon id (fist: none), 6 = explosion
-    static final int SFX_BOOM = 6;
-    static final int[] SFX_GAP = {0, 110, 80, 280, 90, 80, 200};        // ms before the same sound may restart
+    // ------------------------------------------------------------------ sound effects: GTA III's own gun, explosion + crash sounds (the build makes a/s_*.wav)
+    static final String[] SFX = {"", "pistol", "uzi", "shotgun", "ak47", "m16", "boom", "crash"};   // index = weapon id (fist: none), 6 = explosion, 7 = car crash
+    static final int SFX_BOOM = 6, SFX_CRASH = 7;
+    static final int[] SFX_GAP = {0, 110, 80, 280, 90, 80, 200, 250};        // ms before the same sound may restart
     Player[] sfxP = new Player[SFX.length]; long[] sfxT = new long[SFX.length];
     int sfxPend; final Object sfxLock = new Object();
     void initSfx() {
@@ -907,7 +907,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     void hurtPlayer(float d) {
         if (state != ST_PLAY || GOD) return;
         d *= 0.9f;                                                  // v0.7.1: 10% less damage to the player
-        if (car != null) { car.damage += d * 0.3f; if (car.damage >= 100 && car.fireT <= 0 && !car.wreck) car.fireT = 3.5f; health -= d * 0.25f; }
+        if (car != null) { car.hurt(d * 0.3f); if (car.damage >= 100 && car.fireT <= 0 && !car.wreck) car.fireT = 3.5f; health -= d * 0.25f; }
         else health -= d;
         if (health <= 0) { health = 0; if (claude.active) { addBody(claude); claude.active = false; } gameOver(); }
     }
@@ -1513,7 +1513,10 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         if (rv < 0) {
             float j = -1.3f * rv / (la || lb ? 1 : 2);
             if (!la) { a.vx += j * nx; a.vy += j * ny; } if (!lb) { b.vx -= j * nx; b.vy -= j * ny; }
-            if (-rv > 2 * M) { float dm = -rv / M * (a.cop && b.cop ? 0.1f : 0.35f); if (!la) a.damage += dm; if (!lb) b.damage += dm; if (a == car || b == car) { vibrate(60); if (b.cop || a.cop) hurtPlayer(0); }
+            if (-rv > 2 * M) { float dm = -rv / M * (a.cop && b.cop ? 0.1f : 0.35f); if (!la) a.hurt(dm); if (!lb) b.hurt(dm);
+                boolean mine = a == car || b == car;
+                if (mine) { vibrate(60); if (b.cop || a.cop) hurtPlayer(0); }
+                if (mine ? -rv > 2.5f * M : -rv > (a.cop && b.cop ? 9 : 6) * M && vis(hx, hy)) sfx(SFX_CRASH);   // cop cars jostle a lot: only a real hit is heard
                 if (vis(hx, hy)) { sparks(hx, hy, Math.min(10, 3 + (int) (-rv / (3 * M))), Math.min(1.6f, 0.5f - rv / (12 * M))); } }
             if (b.ai && !b.cop) { b.loose = 1.6f + rf(); b.w += (rf() - 0.5f) * (-rv) / (4 * M); }
             if (a.ai && !a.cop) { a.loose = 1.6f + rf(); a.w += (rf() - 0.5f) * (-rv) / (4 * M); }
@@ -1875,8 +1878,6 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         glyphs(g, fHealth, healthX, healthW, gi, n, ix - 3, iy + 1);
         int sw = hStar.getWidth(), sh = hStar.getHeight(), sy = iy + iw - 1 + fh.h, sx = W - 3;
         for (int i = 0; i < 6; i++) { int x = sx - (i + 1) * (sw + 2); g.drawImage(i < stars ? hStar : hStarOff, x, sy, TL); }
-        if (car != null && car.fireT > 0 && ((int) (animT * 5) & 1) == 0)        // your car is burning: get out before it goes up
-            tdraw2(g, TC_TIME, txt("WI_GETOUT"), fb, 0xff4020, W / 2, sy + sh + 6, Graphics.HCENTER | Graphics.TOP);
         if (stars >= 2) {
             if (stars != cStars) { cStars = stars; hWave = stars < 6 ? txt("WI_WAVE") + " " + (stars - 1) : "6 STARS"; cKills = -1; cHold = -2; }
             tdraw(g, TC_WAVE, hWave, fh, 0xffffff, 4, 3, TL);
