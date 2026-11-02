@@ -1,5 +1,7 @@
 # Put your own MIDI files here (none are included with GTA WI):
 
+| Filename | Description |
+|---|---|
 |  maintheme.mid             | plays in the main menu |
 |  track01.mid, track02.mid  | the car radio: getting into a car plays a random track |
 |  track03.mid ...           | and when it ends another random one (as many tracks as you like) |
