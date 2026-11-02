@@ -41,7 +41,7 @@ The build script downloads the free tools it needs; see [BUILDING.md](BUILDING.m
 | `src\` | The game: Java 1.3 source for MIDP 2.0 phones |
 | `map\` | The map: chunk 01 of Portland (the hospital to the Callahan Bridge), hand-built in [Tiled](https://www.mapeditor.org/) |
 | `pipeline\` | The build scripts: GTA III files → sprites → phone resources |
-| `music\` | Empty: put your own MIDI files here (see `music\README.txt`) |
+| `music\` | Empty: put your own MIDI files here (see `music\README.md`) |
 | `setup.bat`, `build.bat`, `run.bat`, `config.bat` | One-time tool download, build, PC test run, settings |
 
 **Not in this repository:** any GTA III model, texture, font, text or sound. The build reads them from *your*
