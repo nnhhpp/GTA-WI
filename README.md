@@ -36,7 +36,7 @@ The build script downloads the free tools it needs; see [BUILDING.md](BUILDING.m
 
 ## What's in this repo
 
-| Folder | Description |
+| Folder / Executable | Description |
 |---|---|
 | `src\` | The game: Java 1.3 source for MIDP 2.0 phones |
 | `map\` | The map: chunk 01 of Portland (the hospital to the Callahan Bridge), hand-built in [Tiled](https://www.mapeditor.org/) |
@@ -58,8 +58,8 @@ Requirements: Windows 10/11 (64-bit), the PC version of GTA III, an internet con
 and about 2 GB of free disk space.
 
 1. Run `setup.bat` once. It downloads the build tools into `tools\`.
-2. Open `config.bat` and set `GTA3` to your GTA III folder.
-3. Optionally, copy your MIDI files into `music\`.
+2. Open `config.bat` in any text editor and set `GTA3` to your GTA III folder.
+3. Optionally, copy your MIDI files into `music\` (see `music\README.txt`).
 4. Run `build.bat`. You get `dist\GTAWI.jar` and `dist\GTAWI.jad`.
 5. Copy both files to your phone, or play on the PC with `run.bat`.
 
