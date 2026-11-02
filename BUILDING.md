@@ -47,13 +47,13 @@ GTA WI ships without music. Put your own MIDI files in `music\`:
 
 ### 4. `build.bat`
 
-| Step | Description | Duration |
-|---|---|---|
-| 1 - Extract | copies the models, HUD, font and menu textures, ped animations, data files and game text it needs from your GTA III folder into `work\gta3\` | instant |
-| 2 - Paths | builds the car and pedestrian route graphs of Portland from the game's IDE/IPL data | instant |
-| 3 - Render | Blender renders every sprite at 32 px per metre into `work\sprites\`: 15 cars × 16 directions, 15 peds (stand, walk, dead), run cycles, Claude's punch and pistol, the police chopper, two portraits | 2–5 min, first build only |
-| 4 - Export | the map + sprites + HUD + menu art + your music → `work\res\` (tiles, collision, radar, routes, sprite strips) | about 1 min |
-| 5 - Compile | Java 1.3 → jar → ProGuard → CLDC check → `dist\GTAWI.jar` + `.jad` | instant |
+| N | Step | Description | Duration |
+|---|---|---|---|
+| 1 | Extract | copies the models, HUD, font and menu textures, ped animations, data files and game text it needs from your GTA III folder into `work\gta3\` | instant |
+| 2 | Paths | builds the car and pedestrian route graphs of Portland from the game's IDE/IPL data | instant |
+| 3 | Render | Blender renders every sprite at 32 px per metre into `work\sprites\`: 15 cars × 16 directions, 15 peds (stand, walk, dead), run cycles, Claude's punch and pistol, the police chopper, two portraits | 2–5 min, first build only |
+| 4 | Export | the map + sprites + HUD + menu art + your music → `work\res\` (tiles, collision, radar, routes, sprite strips) | about 1 min |
+| 5 | Compile | Java 1.3 → jar → ProGuard → CLDC check → `dist\GTAWI.jar` + `.jad` | instant |
 
 | Command Line arguments | Result |
 |---|---|
@@ -68,7 +68,17 @@ h = HUD, f = flushGraphics, w = sleep. Last come page loads, misses and heap.
 ### 5. Play the game
 
 - **On the PC:** `run.bat` (or `run.bat fps` / `run.bat god`).
-  FreeJ2ME keys: arrows = 2/4/6/8, Enter = 5, number keys = 0–9, E = \*, R = #, Q or W = soft key.
+  FreeJ2ME keys:
+  
+| Keyboard | Phone Buttons |
+|---|---|
+| arrows | 2/4/6/8 |
+| Enter | 5 | 
+| number keys | 0–9 |
+| E | \* | 
+| R | # | 
+| Q or W | soft key |
+
 - **On a phone:** copy `GTAWI.jar` and `GTAWI.jad` to the phone (cable, Bluetooth or memory card) and open the jad.
   - The game loads every map page into memory at the start. On phones with little memory it falls back to
     streaming. If it is still too slow, see `WI-Cache` below.
