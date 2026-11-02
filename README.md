@@ -1,11 +1,10 @@
 # GTA WI — "What if 8-Ball drove?"
 
-A top-down cop-survival demake of the first minutes of **Grand Theft Auto III**, for J2ME phones
+A top-down survival demake of the first mission of **Grand Theft Auto III**, for J2ME phones
 (MIDP 2.0 / CLDC 1.1, 240×320). Made for and tested on a **Nokia N95 8GB**.
 
-Liberty City, the night of the Callahan Bridge. In the real game Claude drives and 8-Ball rides along.
-Here 8-Ball insists on driving, hands or no hands, and the Kuruma ends up around a lamp post.
-The cops think *you* blew up the bridge, and they shoot on sight.
+What if 8-Ball insisted on driving, despite messed up hands? 
+Kuruma ends up wrecked and the cops think *you* blew up the bridge.
 
 **No game files are included.** You build the game yourself from your own PC copy of GTA III.
 The build script downloads the free tools it needs; see [BUILDING.md](BUILDING.md).
@@ -13,18 +12,16 @@ The build script downloads the free tools it needs; see [BUILDING.md](BUILDING.m
 ## The game
 
 - **Waves = wanted stars.** Wave 1 starts at 2 stars; every wave adds one, up to 6. The 6-star wave never ends.
-  Your score is how long you survive.
 - **To clear a wave,** survive its timer *and* take down its quota of cops. Miss the quota and it's overtime:
   they keep coming, faster and faster.
-- **No money, no BUSTED.** Run over cops and gang members to pick up ammo for the gun in your hand.
+- Run over cops and gang members in any vehicle to pick up ammo for the gun in your hand.
 - **Weapon drops:** from wave 2, two random guns are stashed on the map each wave. You can grab only one.
 - **The heat:**
   - Cops carry the wave's gun: pistols, shotguns, SWAT uzis, FBI AKs, army M16s.
   - From wave 3 a police chopper hunts you with its searchlight.
   - From wave 4 they set up roadblocks on the road ahead.
 - Every road out of the map is shut by a police roadblock.
-- Cars burn and explode in chain reactions. If your car catches fire, **GET OUT!**
-- There's an easter egg near the hospital.
+- Cars burn and explode in chain reactions.
 
 ## Controls (phone keypad)
 
@@ -34,14 +31,12 @@ The build script downloads the free tools it needs; see [BUILDING.md](BUILDING.m
 | 5 | shoot (hold for automatic guns) | horn |
 | # | sprint (hold) | handbrake |
 | * | next weapon | — |
-| 0 | take a car (hold still while the bar fills) | get out |
+| 0 | auto theft, grand (hold the button while the bar fills) | get out of the vehicle |
 | soft key | pause | pause |
 
-Gas + full lock at low speed breaks the rear loose for donuts and power slides.
+## What's in this repo
 
-## What's in this repository
-
-| Folder | What |
+| Folder | Description |
 |---|---|
 | `src\` | The game: Java 1.3 source for MIDP 2.0 phones |
 | `map\` | The map: chunk 01 of Portland (the hospital to the Callahan Bridge), hand-built in [Tiled](https://www.mapeditor.org/) |
@@ -59,7 +54,7 @@ Share this repository instead, and let people build their own.
 
 ## Building
 
-You need Windows 10/11 (64-bit), the PC version of GTA III, an internet connection for the one-time setup,
+Requirements: Windows 10/11 (64-bit), the PC version of GTA III, an internet connection for the one-time setup,
 and about 2 GB of free disk space.
 
 1. Run `setup.bat` once. It downloads the build tools into `tools\`.
@@ -77,7 +72,7 @@ GTA III and everything the build makes from it are not covered: they belong to R
 
 ## Credits
 
-- GTA WI: Miko (game, map), with Claude (Anthropic) as the coding assistant.
+- Claude (Anthropic)
 - Built with:
   - [INU Tools](https://github.com/INU-ez/INU_Tools-GTA-Blender) by INU (GPL-3.0): GTA model import for Blender
   - [Blender](https://www.blender.org/) (GPL)
