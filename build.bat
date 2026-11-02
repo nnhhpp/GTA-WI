@@ -8,7 +8,7 @@ rem   build.bat clean      delete work\ and dist\ first (a full rebuild from scr
 setlocal EnableExtensions
 cd /d "%~dp0"
 set "KIT=%CD%"
-set "VER=0.7.5"
+set "VER=0.7.6"
 set "NAME=GTAWI" & set "TITLE=GTA WI" & set "FPS=0" & set "GOD=0" & set "RERENDER=0" & set "CLEAN=0"
 for %%A in (%*) do (
   if /i "%%A"=="fps" (set "FPS=1" & set "NAME=GTAWI_fps" & set "TITLE=GTA WI fps")

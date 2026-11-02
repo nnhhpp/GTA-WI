@@ -34,7 +34,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     static final float[] WV_ACC = {0, 0, 0.30f, 0.36f, 0.36f, 0.42f, 0.48f};
 
     final WhatIf midlet;
-    boolean FPS, GOD, sound = true; String lastErr; int dbgWave; int[] dbgAt;
+    boolean FPS, GOD, musicOn = true, sfxOn = true, cap30; String lastErr; int dbgWave; int[] dbgAt;
     int W, H;
     volatile boolean running = true, paused;
     int keys, prevKeys;
@@ -90,6 +90,8 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     int fps, frames; long fpsT; int frameMs, frameMax, fmShow;
     long tA, tB, acU, acM, acS, acH, acF, acW; int lastLoads, lastMiss; String prof = "", fpsS = "";
     int loadPct, sndSel; String sndErr;
+    boolean optOpen; int optSel; boolean optMusic = true, optSfx = true;   // OPTIONS overlay (main menu + pause); opt* = the saved settings
+    long capT0; int capN;                                                // 30 fps limiter schedule
     float[] pt = new float[2];
     int[] tmpI = new int[24];
     // flow field around the player (64x64 cells of 16 px)
@@ -242,7 +244,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         nFire = fv.size(); fireX = new float[nFire]; fireY = new float[nFire]; fireT = new int[nFire];
         for (int i = 0; i < nFire; i++) { String[] a = (String[]) fv.elementAt(i); fireX[i] = Integer.parseInt(a[1]); fireY[i] = Integer.parseInt(a[2]); fireT[i] = Integer.parseInt(a[3]); }
         rD = new float[map.px[0].length]; rDone = new boolean[rD.length];
-        best = loadBest();
+        best = loadBest(); loadOpts();
         logoImg = Image.createImage("/u/logo.png"); try { wastedImg = Image.createImage("/u/wasted.png"); } catch (IOException e) { } loadStep(100);
         state = ST_SND; sndSel = 0;
     }
@@ -287,6 +289,17 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
             if (rs.getNumRecords() > 0) rs.setRecord(1, b, 0, 2); else rs.addRecord(b, 0, 2); rs.closeRecordStore(); } catch (Throwable t) { }
     }
 
+    void loadOpts() {
+        try { RecordStore rs = RecordStore.openRecordStore("wi8o", true);
+            if (rs.getNumRecords() > 0) { byte[] b = rs.getRecord(1); optMusic = b[0] != 0; optSfx = b[1] != 0; cap30 = b[2] != 0; }
+            rs.closeRecordStore(); } catch (Throwable t) { }
+    }
+    void saveOpts() {
+        optMusic = musicOn; optSfx = sfxOn;
+        try { RecordStore rs = RecordStore.openRecordStore("wi8o", true); byte[] b = {(byte) (musicOn ? 1 : 0), (byte) (sfxOn ? 1 : 0), (byte) (cap30 ? 1 : 0)};
+            if (rs.getNumRecords() > 0) rs.setRecord(1, b, 0, 3); else rs.addRecord(b, 0, 3); rs.closeRecordStore(); } catch (Throwable t) { }
+    }
+
     // ------------------------------------------------------------------ new run
     void reset() {
         for (int i = 0; i < peds.length; i++) peds[i].active = false;
@@ -312,6 +325,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         }
         float[] p = objXY("claude");
         claude.x = p[0]; claude.y = p[1]; claude.type = PED_CLAUDE; claude.role = Ped.PLAYER; claude.active = true; claude.moving = false;
+        claude.knockT = 0; claude.hitT = 0; claude.fireT = 0; claude.ride = null; ramT = 0;   // v0.7.6: a new run never starts in the last run's dead pose
         Ped e = peds[0]; p = objXY("eight");
         e.x = p[0]; e.y = p[1]; e.type = PED_EIGHT; e.role = Ped.EIGHT; e.active = true; e.state = Ped.IDLE; e.moving = false; e.health = 100;
         claude.a = G.heading(e.x - claude.x, e.y - claude.y); e.a = G.heading(claude.x - e.x, claude.y - e.y);
@@ -397,11 +411,12 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
                 if ((st & FIRE_PRESSED) != 0) ks |= K_5;
             } catch (Exception e) { }
             int pr = ks & ~prevKeys; prevKeys = ks;
+            if (optOpen) { optKeys(pr); pr = 0; ks = 0; }                  // the OPTIONS overlay takes every key
             if ((pr & K_SOFT) != 0 && (state == ST_PLAY || state == ST_INTRO)) paused = !paused;
             if (radioNext) { radioNext = false; if (radioOn) startRadio(); }
             if (paused) {
                 if ((pr & K_5) != 0) paused = false;
-                if ((pr & K_STAR) != 0) { sound = !sound; if (!sound) stopMusic(); else if (car != null) startRadio(); }
+                if ((pr & K_STAR) != 0) { optOpen = true; optSel = 0; }
                 if ((pr & K_POUND) != 0) { paused = false; toMenu(); }
             } else {
                 tA = System.currentTimeMillis();
@@ -420,7 +435,13 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
                 acU = acM = acS = acH = acF = acW = 0; frames = 0; fpsT = now;
                 if (FPS) System.out.println("STAT fps " + fps + " max " + fmShow + " st " + state + " p " + (int) focusX() + "," + (int) focusY() + " stars " + stars + " kills " + kills + " cops " + copsAlive() + " cc " + nCopCars() + " near " + copsNear() + " d " + (int) nearestCop() + " wt " + (int) waveT + " heli " + (heliOn ? (int) hx + "," + (int) hy : "-") + " rb " + (int) rbT + " hp " + (int) health + " loads " + map.loads + " miss " + map.missesTotal + " mem " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 + "K"); }
             boolean game = state == ST_PLAY || state == ST_INTRO || state == ST_OVER;
+            if (!(cap30 && game && !paused)) { capT0 = f1; capN = 0; }
             if (!game || paused) { try { Thread.sleep(Math.max(5, 40 - spent)); } catch (InterruptedException e) { } }
+            else if (cap30) {                          // frame k is due at capT0 + k * 33.3 ms: an oversleep is paid back on the next frame
+                capN++; long w = capT0 + capN * 1000L / 30 - System.currentTimeMillis();
+                if (w > 0) { try { Thread.sleep(w); } catch (InterruptedException e) { } }
+                else { if (w < -70) { capT0 = System.currentTimeMillis(); capN = 0; } Thread.yield(); }   // the phone can't keep up: don't burst to catch up
+            }
             else if (spent < 12) { try { Thread.sleep(16 - spent); } catch (InterruptedException e) { } }   // ~60 fps cap; the N95 never gets here (flush alone is 11+ ms)
             else Thread.yield();
             acW += System.currentTimeMillis() - f1;
@@ -445,14 +466,14 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
             case ST_LOAD: return;
             case ST_SND:
                 if ((pr & (K_UP | K_DOWN | K_LEFT | K_RIGHT)) != 0) sndSel ^= 1;
-                if (act) { sound = sndSel == 0; toMenu(); }
+                if (act) { if (sndSel == 0) { musicOn = optMusic; sfxOn = optSfx; if (!musicOn && !sfxOn) musicOn = sfxOn = true; } else musicOn = sfxOn = false; toMenu(); }
                 return;
             case ST_MENU:
                 if ((pr & K_UP) != 0) menuSel = (menuSel + MENU.length - 1) % MENU.length;
                 if ((pr & K_DOWN) != 0) menuSel = (menuSel + 1) % MENU.length;
                 if (act && map != null) {
                     if (menuSel == 0) startGame();
-                    else if (menuSel == 1) { sound = !sound; if (sound) playMusic("/a/theme.mid", true); else stopMusic(); }
+                    else if (menuSel == 1) { optOpen = true; optSel = 0; }
                     else if (menuSel == 2) setState(ST_CTRL); else running = false;
                 }
                 return;
@@ -870,7 +891,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     }
     void addBody(Ped p) { int i = deadN % deadX.length; deadN++; deadX[i] = p.x; deadY[i] = p.y; deadT[i] = p.type; deadF[i] = rnd.nextInt(4); }
     long vibT;
-    void vibrate(int ms) { long n = System.currentTimeMillis(); if (!sound || n - vibT < 600) return; vibT = n; try { Display.getDisplay(midlet).vibrate(ms); } catch (Throwable t) { } }
+    void vibrate(int ms) { long n = System.currentTimeMillis(); if (!sfxOn || n - vibT < 600) return; vibT = n; try { Display.getDisplay(midlet).vibrate(ms); } catch (Throwable t) { } }
     // ------------------------------------------------------------------ sound effects: GTA III's own gun, explosion + crash sounds (the build makes a/s_*.wav)
     static final String[] SFX = {"", "pistol", "uzi", "shotgun", "ak47", "m16", "boom", "crash"};   // index = weapon id (fist: none), 6 = explosion, 7 = car crash
     static final int SFX_BOOM = 6, SFX_CRASH = 7;
@@ -886,7 +907,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     }
     /** asks the sound thread to (re)start a sound: the game loop never waits for the phone's media player */
     void sfx(int i) {
-        if (!sound || i <= 0 || i >= SFX.length || sfxP[i] == null) return;
+        if (!sfxOn || i <= 0 || i >= SFX.length || sfxP[i] == null) return;
         long n = System.currentTimeMillis(); if (n - sfxT[i] < SFX_GAP[i]) return; sfxT[i] = n;
         synchronized (sfxLock) { sfxPend |= 1 << i; sfxLock.notify(); }
     }
@@ -1687,12 +1708,14 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         if (state == ST_INTRO && phase < 2 && ((int) (animT * 2) & 1) == 0) g.drawImage(tc(TC_SKIP, "# to skip", fs, 0xe0e0e0, false), W - 4, H - 4, Graphics.RIGHT | Graphics.BOTTOM);
         if (state == ST_OVER) renderOver(g);
         tB = System.currentTimeMillis(); acH += tB - tA; tA = tB;
-        if (paused) {
-            g.setColor(0); g.fillRect(W / 2 - 80, H / 2 - 30, 160, 60); g.setColor(0xffffff); g.drawRect(W / 2 - 80, H / 2 - 30, 160, 60);
-            fb.draw(g, "PAUSED", W / 2, H / 2 - 26, Graphics.HCENTER | Graphics.TOP, 0xffffff);
-            fs.draw(g, "5: resume   #: main menu", W / 2, H / 2 + 0, Graphics.HCENTER | Graphics.TOP, 0xffffff);
-            fs.draw(g, "*: sound " + (sound ? "ON" : "OFF"), W / 2, H / 2 + 1 + fs.h, Graphics.HCENTER | Graphics.TOP, 0xffffff);
-            if (sndErr != null) { g.setColor(0xff8080); g.setFont(fSmall); g.drawString(sndErr.length() > 38 ? sndErr.substring(0, 38) : sndErr, W / 2, H / 2 + 34, Graphics.HCENTER | Graphics.TOP); }
+        if (paused && optOpen) renderOpts(g, -1);
+        else if (paused) {
+            int tw = fb.width("PAUSED"); for (int i = 0; i < PAUSE.length; i++) tw = Math.max(tw, fs.width(PAUSE[i]));
+            int bw = Math.min(W - 8, tw + 32), bh = 8 + fb.h + 4 + PAUSE.length * (fs.h + 1) + 6, bx = (W - bw) / 2, by = (H - bh) / 2;
+            g.setColor(0); g.fillRect(bx, by, bw, bh); g.setColor(0xffffff); g.drawRect(bx, by, bw - 1, bh - 1);
+            fb.draw(g, "PAUSED", W / 2, by + 8, Graphics.HCENTER | Graphics.TOP, 0xffffff);
+            for (int i = 0; i < PAUSE.length; i++) fs.draw(g, PAUSE[i], W / 2, by + 12 + fb.h + i * (fs.h + 1), Graphics.HCENTER | Graphics.TOP, 0xffffff);
+            if (sndErr != null) { g.setColor(0xff8080); g.setFont(fSmall); g.drawString(sndErr.length() > 38 ? sndErr.substring(0, 38) : sndErr, W / 2, by + bh + 4, Graphics.HCENTER | Graphics.TOP); }
         }
         if (FPS) {
             int lh = fSmall.getHeight();
@@ -1780,10 +1803,13 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     }
     static String mmss(float t) { int s = (int) t; return s / 60 + ":" + (s % 60 < 10 ? "0" : "") + s % 60; }
 
-    static final String[] MENU = {"START", "SOUND", "CONTROLS", "QUIT"};
-    static final String[] CTRL = {"ON FOOT", "2 4 6 8 / 1 3 7 9  move", "5  shoot (hold for SMG / rifles)", "#  sprint (hold)", "*  next weapon",
-            "0  take a car (stand still)", "", "IN A CAR", "2 8  gas / brake", "4 6  steer", "#  handbrake", "5  horn", "0  get out", "",
-            "Survive each wave: hold out AND", "take down enough cops. Run cops", "and triads over for ammo. Guns", "are on the radar (green blips).", "", "soft key  pause"};
+    static final String[] MENU = {"START", "OPTIONS", "CONTROLS", "QUIT"};
+    static final String[][] CTRL = {{"ON FOOT"}, {"2 4 6 8 / 1 3 7 9  move"}, {"5  shoot (hold for SMG / rifles)"}, {"#  sprint (hold)", "*  next weapon"},
+            {"0  take a car (stand still)"}, {}, {"IN A CAR"}, {"2 8  gas / brake", "4 6  steer"}, {"#  handbrake", "5  horn", "0  get out"}, {},
+            {"Survive each wave: hold out AND take down enough cops. Run cops and triads over for ammo. Guns are on the radar (green blips)."}, {},
+            {"soft key  pause"}};
+    static final String CTRL_SEP = "     ";
+    static final String[] PAUSE = {"5: resume", "*: options", "#: main menu"};
     boolean loading;
     void renderMenu(Graphics g) {
         g.setColor(0); g.fillRect(0, 0, W, H);
@@ -1808,21 +1834,87 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         if (menuImg != null) g.drawImage(menuImg, W / 2, H / 2, Graphics.HCENTER | Graphics.VCENTER);
         if (state == ST_CTRL) {
             g.setColor(0x000000); g.fillRect(6, 6, W - 12, H - 12);
+            if (ctrlL == null) layoutCtrl();
             int y = 12;
-            for (int i = 0; i < CTRL.length; i++) {
-                boolean head = CTRL[i].startsWith("ON ") || CTRL[i].startsWith("IN ");
-                fs.draw(g, CTRL[i], 14, y, TL, head ? 0xe8b830 : 0xffffff); y += CTRL[i].length() == 0 ? 6 : fs.h + 1;
+            for (int i = 0; i < ctrlL.length; i++) {
+                String l = ctrlL[i]; boolean head = l.equals("ON FOOT") || l.equals("IN A CAR");
+                if (l.length() == 0) { y += ctrlGap; continue; }
+                fs.draw(g, l, 14, y, TL, head ? 0xe8b830 : 0xffffff); y += ctrlStep;
             }
             return;
         }
         if (logoImg != null) g.drawImage(logoImg, W / 2, 10, Graphics.HCENTER | Graphics.TOP);
-        cf = fs; outlined(g, txt("WI_TITLE"), W / 2, 118, Graphics.HCENTER | Graphics.TOP, 0xe8c070);
-        if (state != ST_LOAD && map != null && best > 0) outlined(g, "Best: " + mmss(best), W / 2, 120 + fs.h, Graphics.HCENTER | Graphics.TOP, 0xc8c8c8);
-        cf = fb;
-        int y0 = H - 132;
-        for (int i = 0; i < MENU.length; i++) outlined(g, i == 1 ? (sound ? "SOUND: ON" : "SOUND: OFF") : MENU[i], W / 2, y0 + i * 27, Graphics.HCENTER | Graphics.TOP, i == menuSel ? 0xe8b830 : 0xd0d0d0);
+        if (!optOpen) {
+            cf = fs; outlined(g, txt("WI_TITLE"), W / 2, 118, Graphics.HCENTER | Graphics.TOP, 0xe8c070);
+            if (state != ST_LOAD && map != null && best > 0) outlined(g, "Best: " + mmss(best), W / 2, 120 + fs.h, Graphics.HCENTER | Graphics.TOP, 0xc8c8c8);
+            cf = fb;
+            int y0 = H - 132;
+            for (int i = 0; i < MENU.length; i++) outlined(g, MENU[i], W / 2, y0 + i * 27, Graphics.HCENTER | Graphics.TOP, i == menuSel ? 0xe8b830 : 0xd0d0d0);
+        }
         cf = fs;
         if (state == ST_LOAD || map == null) outlined(g, "Loading...", W / 2, H - 14, Graphics.HCENTER | Graphics.BASELINE, 0xa0a0a0);
+        if (optOpen) renderOpts(g, 116);
+    }
+    // ------------------------------------------------------------------ OPTIONS (main menu + pause screen), saved in RMS "wi8o"
+    static final int OPT_N = 4;
+    String[] optItems() { return new String[]{"MUSIC: " + (musicOn ? "ON" : "OFF"), "SOUND FX: " + (sfxOn ? "ON" : "OFF"), "FPS LIMIT: " + (cap30 ? "30" : "OFF"), "BACK"}; }
+    void optKeys(int pr) {
+        if ((pr & (K_0 | K_SOFT)) != 0) { optOpen = false; return; }
+        boolean vert = (pr & (K_UP | K_DOWN)) != 0;
+        if ((pr & K_UP) != 0) optSel = (optSel + OPT_N - 1) % OPT_N;
+        if ((pr & K_DOWN) != 0) optSel = (optSel + 1) % OPT_N;
+        if ((pr & K_5) == 0 && ((pr & (K_LEFT | K_RIGHT)) == 0 || vert)) return;
+        if (optSel == 0) {
+            musicOn = !musicOn;
+            if (!musicOn) stopMusic();
+            else if (state == ST_MENU) playMusic("/a/theme.mid", true);
+            else if (car != null && state == ST_PLAY) startRadio();          // on foot there's no radio: it comes on with the next car
+        } else if (optSel == 1) sfxOn = !sfxOn;
+        else if (optSel == 2) cap30 = !cap30;
+        else { if ((pr & K_5) != 0) optOpen = false; return; }
+        saveOpts();
+    }
+    /** top < 0: centred on the screen (pause), else from that y down (main menu, under the logo) */
+    void renderOpts(Graphics g, int top) {
+        String[] it = optItems(); String hint = "5 change   0 back";
+        BFont f = fb; int tw = fb.width("OPTIONS");
+        for (int i = 0; i < it.length; i++) tw = Math.max(tw, fb.width(it[i]));
+        if (tw > W - 36) { f = fs; tw = fb.width("OPTIONS"); for (int i = 0; i < it.length; i++) tw = Math.max(tw, fs.width(it[i])); }
+        tw = Math.max(tw, fs.width(hint));
+        int step = f.h + 6, bw = Math.min(W - 8, tw + 32), bh = 10 + fb.h + 8 + it.length * step + 2 + fs.h + 8;
+        int bx = (W - bw) / 2, by = top >= 0 && top + bh <= H - 4 ? top : (H - bh) / 2;
+        g.setColor(0); g.fillRect(bx, by, bw, bh); g.setColor(0xffffff); g.drawRect(bx, by, bw - 1, bh - 1);
+        int y = by + 10; fb.draw(g, "OPTIONS", W / 2, y, Graphics.HCENTER | Graphics.TOP, 0xffffff); y += fb.h + 8;
+        for (int i = 0; i < it.length; i++) { f.draw(g, it[i], W / 2, y, Graphics.HCENTER | Graphics.TOP, i == optSel ? 0xe8b830 : 0xb8b8b8); y += step; }
+        fs.draw(g, hint, W / 2, y + 2, Graphics.HCENTER | Graphics.TOP, 0x808080);
+    }
+    // the CONTROLS page: one entry per line if that fits the phone's font, else short entries share a line; long ones wrap
+    String[] ctrlL; int ctrlStep, ctrlGap;
+    void layoutCtrl() {
+        int tw = W - 28, avail = H - 22, nt = 0, nb = 0;
+        for (int pass = 0; pass < 2; pass++) {
+            Vector v = new Vector();
+            for (int r = 0; r < CTRL.length; r++) {
+                String[] row = CTRL[r];
+                if (row.length == 0) { v.addElement(""); continue; }
+                String cur = null;
+                for (int i = 0; i < row.length; i++) {
+                    if (pass == 1 && cur != null && fs.width(cur + CTRL_SEP + row[i]) <= tw) { cur = cur + CTRL_SEP + row[i]; continue; }
+                    if (cur != null) addWrapped(v, cur, tw);
+                    cur = row[i];
+                }
+                addWrapped(v, cur, tw);
+            }
+            ctrlL = new String[v.size()]; v.copyInto(ctrlL); nt = 0; nb = 0;
+            for (int i = 0; i < ctrlL.length; i++) if (ctrlL[i].length() == 0) nb++; else nt++;
+            ctrlGap = 6; ctrlStep = fs.h + 1;
+            if (nt * ctrlStep + nb * ctrlGap <= avail) return;
+        }
+        ctrlGap = 2; ctrlStep = Math.max(fs.h - 4, (avail - nb * ctrlGap) / Math.max(1, nt));   // a huge font: squeeze the lines together
+    }
+    void addWrapped(Vector v, String s, int tw) {
+        if (fs.width(s) <= tw) { v.addElement(s); return; }
+        Vector w = wrap(s, fs, tw); for (int i = 0; i < w.size(); i++) v.addElement(w.elementAt(i));
     }
     void renderOver(Graphics g) {
         cf = fb;
@@ -2014,7 +2106,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     public void playerUpdate(Player p, String event, Object data) { if (PlayerListener.END_OF_MEDIA.equals(event) && radioOn && p == music) radioNext = true; }
     static final String[] MIDI_T = {"audio/midi", "audio/x-midi", "audio/mid", "audio/sp-midi"};
     void playMusic(String res, boolean loop) {
-        stopMusic(); if (!sound) return;
+        stopMusic(); if (!musicOn) return;
         for (int i = 0; i < MIDI_T.length && music == null; i++) {
             Player p = null;
             try {
