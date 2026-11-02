@@ -1,6 +1,6 @@
 # Building GTA WI
 
-The build turns **your** GTA III install into a phone game. Nothing from the game is in this repository.
+The build turns **your** GTA III install into a phone game (sorta). Nothing from the game is in this repository.
 Everything is downloaded or generated inside this folder, so deleting the folder removes all of it.
 
 ## What you need
@@ -8,7 +8,7 @@ Everything is downloaded or generated inside this folder, so deleting the folder
 - **Windows 10 or 11, 64-bit.**
 - **GTA III for PC:** Steam, the original retail CD, or the Rockstar Games Launcher version.
   Any folder with `gta3.exe`, `models\gta3.img` and `models\gta3.dir` in it works.
-  The 2021 *Definitive Edition* does **not** work: it is a different engine without those files.
+
 - **About 2 GB of free disk space**, most of it for Blender.
 - **A graphics card that runs Blender 5.2** (OpenGL 4.3). The sprites are rendered with EEVEE.
 - **An internet connection** for `setup.bat`. After that the build works offline.
@@ -19,7 +19,7 @@ Everything is downloaded or generated inside this folder, so deleting the folder
 
 Downloads the build tools into `tools\` (about 550 MB):
 
-| Tool | Version | Why |
+| Tool | Version | Purpose |
 |---|---|---|
 | Eclipse Temurin JDK | 8u432 | `javac` that can still target Java 1.3 bytecode for old phones |
 | ProGuard | 7.6.1 | shrinks the jar and preverifies it for MIDP |
@@ -28,7 +28,7 @@ Downloads the build tools into `tools\` (about 550 MB):
 | Blender | 5.2.3 | renders the sprites; set up portable, so its settings stay in `tools\` |
 | INU Tools | 2.5.4 | Blender extension that imports GTA III `.dff` and `.txd` files |
 
-Running it again only fetches what's missing.
+Running `setup.bat` again only fetches what's missing.
 
 ### 2. `config.bat`
 
@@ -47,15 +47,15 @@ GTA WI ships without music. Put your own MIDI files in `music\`:
 
 ### 4. `build.bat`
 
-| Step | What it does | Time |
+| Step | Description | Duration |
 |---|---|---|
-| 1 extract | copies the models, HUD, font and menu textures, ped animations, data files and game text it needs from your GTA III folder into `work\gta3\` | seconds |
-| 2 paths | builds the car and pedestrian route graphs of Portland from the game's IDE/IPL data | seconds |
-| 3 render | Blender renders every sprite at 32 px per metre into `work\sprites\`: 15 cars × 16 directions, 15 peds (stand, walk, dead), run cycles, Claude's punch and pistol, the police chopper, two portraits | 2–5 min, first build only |
-| 4 export | the map + sprites + HUD + menu art + your music → `work\res\` (tiles, collision, radar, routes, sprite strips) | about 1 min |
-| 5 compile | Java 1.3 → jar → ProGuard → CLDC check → `dist\GTAWI.jar` + `.jad` | seconds |
+| 1 - Extract | copies the models, HUD, font and menu textures, ped animations, data files and game text it needs from your GTA III folder into `work\gta3\` | instant |
+| 2 - Paths | builds the car and pedestrian route graphs of Portland from the game's IDE/IPL data | instant |
+| 3 - Render | Blender renders every sprite at 32 px per metre into `work\sprites\`: 15 cars × 16 directions, 15 peds (stand, walk, dead), run cycles, Claude's punch and pistol, the police chopper, two portraits | 2–5 min, first build only |
+| 4 - Export | the map + sprites + HUD + menu art + your music → `work\res\` (tiles, collision, radar, routes, sprite strips) | about 1 min |
+| 5 - Compile | Java 1.3 → jar → ProGuard → CLDC check → `dist\GTAWI.jar` + `.jad` | instant |
 
-| Command | Result |
+| Command Line arguments | Result |
 |---|---|
 | `build.bat fps` | `dist\GTAWI_fps.jar`, with a two-line profiler above the radar |
 | `build.bat god` | `dist\GTAWI_god.jar`, with the profiler; Claude takes no damage |
@@ -65,12 +65,11 @@ GTA WI ships without music. Put your own MIDI files in `music\`:
 The profiler shows fps and the worst frame in ms. Then, in ms per frame: u = update, m = map, s = sprites,
 h = HUD, f = flushGraphics, w = sleep. Last come page loads, misses and heap.
 
-### 5. Play it
+### 5. Play the game
 
 - **On the PC:** `run.bat` (or `run.bat fps` / `run.bat god`).
   FreeJ2ME keys: arrows = 2/4/6/8, Enter = 5, number keys = 0–9, E = \*, R = #, Q or W = soft key.
 - **On a phone:** copy `GTAWI.jar` and `GTAWI.jad` to the phone (cable, Bluetooth or memory card) and open the jad.
-  - Nokia S60 phones obey the sound profile. In *Silent* the game is silent too; *Offline* works without a SIM.
   - The game loads every map page into memory at the start. On phones with little memory it falls back to
     streaming. If it is still too slow, see `WI-Cache` below.
 
