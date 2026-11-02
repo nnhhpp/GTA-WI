@@ -20,7 +20,6 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     static final float[] W_RANGE = {1.4f, 22, 18, 11, 30, 32};                      // m
     static final boolean[] W_AUTO = {false, false, true, false, true, true};
     static final int[] W_CLIP = {0, 24, 90, 16, 60, 90};                             // ammo per pickup / run-over
-    static final int[] W_TONE = {0, 74, 80, 62, 70, 77};
     // wanted levels 2..6: quota, min time s, max cops alive, cop ped, car, cop weapon, crew, spawn interval s
     static final int[] WV_QUOTA = {0, 0, 6, 10, 12, 14, 0};
     static final int[] WV_TIME = {0, 0, 45, 60, 60, 75, 0};
@@ -225,7 +224,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
             healthW = new int[a.length - 1]; healthX = new int[a.length - 1];
             for (int i = 0, acc = 0; i < healthW.length; i++) { healthW[i] = Integer.parseInt(a[i + 1]); healthX[i] = acc; acc += healthW[i]; }
         }
-        prepRadar(); prepDigits(); loadStep(40);
+        prepRadar(); prepDigits(); initSfx(); loadStep(40);
         String cache = null; try { cache = midlet.getAppProperty("WI-Cache"); } catch (Throwable e) { }
         map = new MapR(W, H, cache); loadStep(75); map.buildPass(); loadStep(90);
         Vector sp = new Vector(), wp = new Vector(), fv = new Vector(), rb = new Vector();
@@ -446,7 +445,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
             case ST_LOAD: return;
             case ST_SND:
                 if ((pr & (K_UP | K_DOWN | K_LEFT | K_RIGHT)) != 0) sndSel ^= 1;
-                if (act) { sound = sndSel == 0; toMenu(); if (sound) tone(76, 120, 80); }
+                if (act) { sound = sndSel == 0; toMenu(); }
                 return;
             case ST_MENU:
                 if ((pr & K_UP) != 0) menuSel = (menuSel + MENU.length - 1) % MENU.length;
@@ -470,7 +469,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         if (car != null) {
             car.physics(map, dt, 27);
             if (car.drift > 0.35f && (car.speed() > 0.5f * M || Math.abs(car.w) > 1)) tyreSmoke(car, dt);
-            if (car.imp > 4 * M) { sparks(car.impX, car.impY, Math.min(10, 2 + (int) (car.imp / (3 * M))), Math.min(1.6f, car.imp / (10 * M))); tone(88, 40, 70); }
+            if (car.imp > 4 * M) { sparks(car.impX, car.impY, Math.min(10, 2 + (int) (car.imp / (3 * M))), Math.min(1.6f, car.imp / (10 * M))); }
             car.imp = 0;
             carVsPoles(car);
             if (car.damage >= 100 && car.fireT <= 0) { car.fireT = 3.5f; help = txt("WRECKED"); helpT = 3; }
@@ -535,7 +534,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     void crash(Car k) {
         if (crashPole >= 0) map.pDown[crashPole] = true;
         k.damage = 70; k.smokeT = 1; k.vx = k.vy = 0; shakeT = 0.7f; vibrate(200);
-        tone(50, 300, 100);
+       
         help = null; helpT = 0;
     }
 
@@ -593,7 +592,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     }
     void explode(Car c) {
         c.wreck = true; c.fireT = 0; c.damage = 200; c.wreckAt = animT; shakeT = 0.7f; vibrate(300);
-        tone(45, 500, 100);
+        sfx(SFX_BOOM);
         int k = exHead; exHead = (exHead + 1) & 3; exX[k] = c.x; exY[k] = c.y; exT[k] = 0.001f;
         sparks(c.x, c.y, 16, 1.9f);
         for (int i = 0; i < 6; i++) { int m = mHead; mHead = (mHead + 1) % NSM; mX[m] = c.x + (rf() - 0.5f) * 40; mY[m] = c.y + (rf() - 0.5f) * 24; mL[m] = 0.75f; }
@@ -639,7 +638,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         if ((pr & K_5) != 0) horn();
         if ((pr & K_0) != 0 || car.wreck) { if (car.speed() < 3 * M || car.wreck) exitCar(); else car.handbrake = true; }
     }
-    void horn() { tone(68, 260, 100);
+    void horn() {
         for (int i = 0; i < peds.length; i++) { Ped p = peds[i]; if (p.active && p.role == Ped.CIV && ahead(car, p, car.hl + 10 * M, car.hw + 3 * M)) scare(p, car.x, car.y); } }
     void exitCar() {
         Car c = car; if (c == null) return;
@@ -687,7 +686,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         if (best == null) return;
         jackCar = best; jackSrc = src; jackIx = ix; jackT = 0; jackDur = JACK_S[src];
         if (src == 2) best.holdT = Math.max(best.holdT, jackDur + 0.5f);
-        tone(60, 60, 70);
+       
     }
     void enterCar(Car best, int src, int ix) {
         jackCar = null;
@@ -766,7 +765,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
             return;
         }
         ammo[w]--; flashT = 0.07f;
-        tone(W_TONE[w], 50, 90);
+        sfx(w);
         float fx = claude.dirX(), fy = claude.dirY();
         aimX = claude.x + fx * reach; aimY = claude.y + fy * reach; aimHit = false;
         if (w == W_SHOTGUN) {          // spread: everyone in the cone within range
@@ -870,10 +869,41 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         }
     }
     void addBody(Ped p) { int i = deadN % deadX.length; deadN++; deadX[i] = p.x; deadY[i] = p.y; deadT[i] = p.type; deadF[i] = rnd.nextInt(4); }
-    long vibT, toneMs;
+    long vibT;
     void vibrate(int ms) { long n = System.currentTimeMillis(); if (!sound || n - vibT < 600) return; vibT = n; try { Display.getDisplay(midlet).vibrate(ms); } catch (Throwable t) { } }
-    /** Manager.playTone is slow on S60: at most ~6 a second, none when the sound is off */
-    void tone(int note, int ms, int vol) { long n = System.currentTimeMillis(); if (!sound || n - toneMs < 160) return; toneMs = n; try { Manager.playTone(note, ms, vol); } catch (Throwable t) { } }
+    // ------------------------------------------------------------------ sound effects: GTA III's own gun + explosion sounds (the build makes a/s_*.wav)
+    static final String[] SFX = {"", "pistol", "uzi", "shotgun", "ak47", "m16", "boom"};   // index = weapon id (fist: none), 6 = explosion
+    static final int SFX_BOOM = 6;
+    static final int[] SFX_GAP = {0, 110, 80, 280, 90, 80, 200};        // ms before the same sound may restart
+    Player[] sfxP = new Player[SFX.length]; long[] sfxT = new long[SFX.length];
+    int sfxPend; final Object sfxLock = new Object();
+    void initSfx() {
+        for (int i = 1; i < SFX.length; i++) {
+            InputStream is = getClass().getResourceAsStream("/a/s_" + SFX[i] + ".wav"); if (is == null) continue;
+            try { Player p = Manager.createPlayer(is, "audio/x-wav"); p.realize(); p.prefetch(); sfxP[i] = p; } catch (Throwable t) { sndErr = "wav: " + t; }
+        }
+        new Thread(new Runnable() { public void run() { sfxLoop(); } }).start();
+    }
+    /** asks the sound thread to (re)start a sound: the game loop never waits for the phone's media player */
+    void sfx(int i) {
+        if (!sound || i <= 0 || i >= SFX.length || sfxP[i] == null) return;
+        long n = System.currentTimeMillis(); if (n - sfxT[i] < SFX_GAP[i]) return; sfxT[i] = n;
+        synchronized (sfxLock) { sfxPend |= 1 << i; sfxLock.notify(); }
+    }
+    void sfxLoop() {
+        while (true) {
+            int m;
+            synchronized (sfxLock) {
+                while (sfxPend == 0) { try { sfxLock.wait(); } catch (InterruptedException e) { return; } }
+                m = sfxPend; sfxPend = 0;
+            }
+            for (int i = SFX.length - 1; i > 0; i--) {
+                if ((m & (1 << i)) == 0) continue;
+                Player p = sfxP[i];
+                try { if (p.getState() == Player.STARTED) p.stop(); p.setMediaTime(0); p.start(); } catch (Throwable t) { }
+            }
+        }
+    }
     void hurtPlayer(float d) {
         if (state != ST_PLAY || GOD) return;
         d *= 0.9f;                                                  // v0.7.1: 10% less damage to the player
@@ -885,14 +915,14 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         if (state == ST_OVER) return;
         setState(ST_OVER); radioOn = false; stopMusic(); dlgText = null; help = null;
         newBest = survT > best; if (newBest) { best = survT; saveBest(best); }
-        tone(52, 700, 100);
+       
     }
 
     // ------------------------------------------------------------------ waves (rampage rule: survive the time AND get the kills)
     void startWave(int s) {
         needPed(idx(pedName, WV_PED[s])); needCar(idx(carName, WV_CAR[s]));
         stars = s; waveKills = 0; waveT = 0; overtime = false; overT = 0; spawnT = 1.5f;
-        tone(76, 180, 90);
+       
         newPickups();
         if (s > 2) { help = txt("WI_CLEAR"); helpT = 4; health = Math.min(100, health + 40); }
         // two cars straight away
@@ -1008,7 +1038,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     void knockDown(Car c) {
         claude.knockT = 1.3f; claude.moving = false; atkT = 0; deadPose = rnd.nextInt(4); vibrate(150);
         float d = Math.max(1, c.speed()); stepPed(claude, c.vx / d * 14, c.vy / d * 14);
-        tone(57, 120, 90);
+       
     }
     int deadPose;
     void updateCopCars(float dt) {
@@ -1316,6 +1346,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
                 float tsp = car != null ? car.speed() / M : (claude.moving ? 3 : 0);
                 float acc = (sg ? 0.55f : WV_ACC[stars]) * (1.15f - d / range * 0.6f) / (1 + tsp * 0.05f);
                 p.hitT = 0; flashCop = p; flashCopT = 0.06f;
+                if (onScreen(p.x, p.y, 16)) sfx(p.weapon);               // you hear the cops you can see
                 if (rf() < acc) hurtPlayer(WV_COPDMG[stars]);
 
             }
@@ -1483,7 +1514,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
             float j = -1.3f * rv / (la || lb ? 1 : 2);
             if (!la) { a.vx += j * nx; a.vy += j * ny; } if (!lb) { b.vx -= j * nx; b.vy -= j * ny; }
             if (-rv > 2 * M) { float dm = -rv / M * (a.cop && b.cop ? 0.1f : 0.35f); if (!la) a.damage += dm; if (!lb) b.damage += dm; if (a == car || b == car) { vibrate(60); if (b.cop || a.cop) hurtPlayer(0); }
-                if (vis(hx, hy)) { sparks(hx, hy, Math.min(10, 3 + (int) (-rv / (3 * M))), Math.min(1.6f, 0.5f - rv / (12 * M))); if (a == car || b == car) tone(88, 40, 70); } }
+                if (vis(hx, hy)) { sparks(hx, hy, Math.min(10, 3 + (int) (-rv / (3 * M))), Math.min(1.6f, 0.5f - rv / (12 * M))); } }
             if (b.ai && !b.cop) { b.loose = 1.6f + rf(); b.w += (rf() - 0.5f) * (-rv) / (4 * M); }
             if (a.ai && !a.cop) { a.loose = 1.6f + rf(); a.w += (rf() - 0.5f) * (-rv) / (4 * M); }
             if (b.cop) { b.spd = Math.max(-2 * M, b.spd * 0.4f); }
@@ -1511,7 +1542,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
             if (claude.active && claude.knockT <= 0 && near(claude, pkX[i], pkY[i], 16)) {
                 int w = pkW[i]; have[w] = true; ammo[w] += W_CLIP[w]; weapon = w;
                 popup = WN[w].toUpperCase() + " +" + W_CLIP[w]; popupT = 1.8f;
-                tone(84, 120, 90);
+               
                 for (int k = 0; k < nPk; k++) pkW[k] = -1;          // the other one is gone until the next wave
             }
         }

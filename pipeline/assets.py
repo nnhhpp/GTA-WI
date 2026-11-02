@@ -21,6 +21,10 @@ CARS = ['kuruma', 'police', 'stallion', 'idaho', 'manana', 'taxi', 'mafia', 'per
 CAR_COMBO = {'kuruma': 2}                       # carcols.dat colour pair (default: the first); 8-Ball's Kuruma is the teal one
 HELI = 'chopper'
 PORTRAITS = {'claude': 'playerp', 'eight': 'eight'}
+# sound effects from audio\sfx.RAW (sample numbers in the game's bank order; LEFT channel of the stereo pairs):
+# name -> (sample, longest seconds kept). The game plays them as /a/s_<name>.wav (8-bit, 11 kHz)
+SFX = {'pistol': (67, 0.45), 'uzi': (73, 0.16), 'shotgun': (86, 0.75), 'ak47': (71, 0.16), 'm16': (69, 0.14),
+       'boom': (456, 1.7)}
 
 # loose files (relative to the GTA III folder, any case) -> work/gta3/<same path, lower case>
 LOOSE = ['models/hud.txd', 'models/fonts.txd', 'models/menu.txd', 'models/misc.txd', 'models/generic.txd',

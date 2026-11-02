@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.9"
-# dependencies = []
+# dependencies = ["numpy"]
 # ///
 """Step 1: copy what the build needs out of YOUR GTA III folder into work\\gta3 (nothing from the game ships with GTA WI).
 
@@ -75,6 +75,13 @@ def main():
             for f in fs:
                 dst = os.path.join(out, rel.lower(), os.path.relpath(os.path.join(dp, f), src).lower())
                 os.makedirs(os.path.dirname(dst), exist_ok=True); shutil.copyfile(os.path.join(dp, f), dst)
+    # sound effects: the few samples we use, out of audio\sfx.RAW (80 MB) -> work\gta3\sfx\<name>.wav (16-bit)
+    import sfx as S
+    adir = ci(game, 'audio')
+    os.makedirs(os.path.join(out, 'sfx'), exist_ok=True)
+    for name, (idx, _) in A.SFX.items():
+        try: x, rate = S.read_sample(adir, idx); S.write_wav16(os.path.join(out, 'sfx', name + '.wav'), x, rate)
+        except (OSError, TypeError): missing.append('audio\\sfx.raw/.sdt'); break
     n = sum(len(fs) for _, _, fs in os.walk(out))
     print('extract: %d files -> %s' % (n, out))
     if missing:
