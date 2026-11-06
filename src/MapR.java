@@ -167,8 +167,24 @@ public final class MapR {
     }
     /** load point (game start): the whole ground pool and every prop image, so the frame never decodes those */
     public void preloadStatic() {
-        if (cap[0] >= pg[0].length) for (int i = 0; i < pg[0].length; i++) need(POOL_U, i);
-        for (int i = 0; i < pim.length; i++) propImg(i);
+        try {
+            if (cap[0] >= pg[0].length) for (int i = 0; i < pg[0].length; i++) need(POOL_U, i);
+            for (int i = 0; i < pim.length; i++) propImg(i);
+        } catch (OutOfMemoryError e) { shrink(); System.gc(); }    // v0.7.7: not enough heap to keep it all - stream instead
+    }
+    /** a sprite (or the start) needs memory: every pool keeps half its pages from now on and streams the rest */
+    public void shrink() {
+        for (int p = 0; p < 3; p++) {
+            cap[p] = Math.min(cap[p], Math.max(32, pgCnt[p] / 2));
+            for (int i = 0; i < 4000 && pgCnt[p] > cap[p]; i++) evict(p);
+        }
+        int keep = Math.max(16, pimCount / 2); if (PIMAX > keep) PIMAX = keep;
+        while (pimCount > PIMAX) {
+            int best = -1, bu = Integer.MAX_VALUE;
+            for (int k = 0; k < pim.length; k++) if (pim[k] != null && pimUse[k] < bu) { bu = pimUse[k]; best = k; }
+            if (best < 0) break; pim[best] = null; pimCount--;
+        }
+        vx0 = -9999;
     }
     /** pages of the pools whose cap holds all of them (WI-Cache 999,999,999,...): decoded once at game start, never again */
     public int preloadTotal() { int n = 0; for (int p = 0; p < 3; p++) if (cap[p] >= pg[p].length) n += pg[p].length; return n; }

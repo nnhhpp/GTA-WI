@@ -17,6 +17,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     static final String[] WN = {"fist", "pistol", "uzi", "shotgun", "ak47", "m16"};
     static final float[] W_RATE = {0.42f, 0.34f, 0.11f, 0.95f, 0.15f, 0.12f};      // s between shots
     static final int[] W_DMG = {22, 55, 24, 90, 40, 45};
+    static final float DMG = 0.9f;                 // v0.7.8: all damage to people (Claude, cops, everyone) -10%
     static final float[] W_RANGE = {1.4f, 22, 18, 11, 30, 32};                      // m
     static final boolean[] W_AUTO = {false, false, true, false, true, true};
     static final int[] W_CLIP = {0, 24, 90, 16, 60, 90};                             // ammo per pickup / run-over
@@ -258,12 +259,31 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         return new float[]{map.PW / 2, map.PH / 2};
     }
     Car newCar(int type) { needCar(type); return new Car(type, carWm[type], carLm[type]); }
-    Image burnt(int t) { if (carBurnt[t] == null) try { carBurnt[t] = Image.createImage("/s/c_" + carName[t] + "_b.png"); } catch (Throwable e) { } return carBurnt[t]; }
-    void needCar(int t) { if (carImg[t] == null) try { carImg[t] = Image.createImage("/s/c_" + carName[t] + ".png"); } catch (IOException e) { } }
+    /** v0.7.7: sprites win over cached map pages. On a small heap (SE Zylo) the map gives back half its pages and streams. */
+    Image img(String path) {
+        try { return Image.createImage(path); }
+        catch (OutOfMemoryError e) { map.shrink(); System.gc(); try { return Image.createImage(path); } catch (Throwable t) { return null; } }
+        catch (Throwable e) { return null; }
+    }
+    Image burnt(int t) { if (carBurnt[t] == null) carBurnt[t] = img("/s/c_" + carName[t] + "_b.png"); return carBurnt[t]; }
+    void needCar(int t) { if (carImg[t] == null) carImg[t] = img("/s/c_" + carName[t] + ".png"); }
     void needPed(int t) {
         if (pedWalk[t] != null) return;
-        try { String n = pedName[t]; pedWalk[t] = Image.createImage("/s/p_" + n + "_w.png"); pedStand[t] = Image.createImage("/s/p_" + n + "_s.png"); pedDead[t] = Image.createImage("/s/p_" + n + "_d.png"); }
-        catch (IOException e) { }
+        String n = pedName[t]; Image w = img("/s/p_" + n + "_w.png"), st = img("/s/p_" + n + "_s.png"), d = img("/s/p_" + n + "_d.png");
+        if (w != null && st != null && d != null) { pedWalk[t] = w; pedStand[t] = st; pedDead[t] = d; }
+    }
+    /** back to the menu / a new start: drop everything the last run loaded (the world, its sprites, burnt shells, cached texts) */
+    void releaseRun() {
+        for (int i = 0; i < peds.length; i++) peds[i].active = false;
+        for (int i = 0; i < traffic.length; i++) traffic[i] = null;
+        for (int i = 0; i < copCars.length; i++) copCars[i] = null;
+        for (int i = 0; i < parked.length; i++) parked[i] = null;
+        car = null; wreck = null; jackCar = null; aimShowP = null; aimShowC = null; mistyP = null; deadN = 0;
+        for (int i = 0; i < carImg.length; i++) { carImg[i] = null; carBurnt[i] = null; }
+        for (int i = 0; i < pedWalk.length; i++) { pedWalk[i] = pedStand[i] = pedDead[i] = null; }
+        for (int i = 0; i < TC_N; i++) { tcI[i] = null; tcS[i] = null; }
+        dlgText = null; dlgPort = null; dlgName = null; dlgL = null; dlgI = null;
+        System.gc();
     }
     /** load point: pick this run's civilians + traffic, drop the sprites nobody uses */
     void pickTypes() {
@@ -359,19 +379,28 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         pt[0] = x[i] + (x[i + 1] - x[i]) * t; pt[1] = y[i] + (y[i + 1] - y[i]) * t;
     }
     void startGame() {
-        stopMusic(); menuImg = null; loading = true; loadPct = 0; present(); System.gc();
-        map.preloadStatic();
-        int n = map.preloadTotal();
-        for (int k = 0; k < n; k++) { if (!map.preloadPage(k)) break; if ((k & 7) == 0) { loadPct = k * 100 / n; present(); } }
-        loading = false;
-        reset();
+        stopMusic(); menuImg = null; optOpen = false; loading = true; loadPct = 0; present(); releaseRun();
+        try { loadRun(); }
+        catch (OutOfMemoryError e) {                     // v0.7.7: a small heap after a run (SE Zylo) - try once more from an empty map cache
+            releaseRun(); map.flush(); System.gc();
+            try { loadRun(); }
+            catch (OutOfMemoryError e2) { releaseRun(); map.flush(); System.gc(); loading = false; toMenu(); lastErr = "Not enough memory - try START again"; return; }
+        }
+        loading = false; lastErr = null;
         setState(ST_INTRO); phase = 0; phT = 0;
         say(new String[]{"EBAL_A", "EBAL_A1", "WI_8A"}, new boolean[]{true, true, true});
     }
+    void loadRun() {
+        reset();                                         // this run's sprites first: the map cache only gets what is left
+        map.preloadStatic();
+        int n = map.preloadTotal();
+        for (int k = 0; k < n; k++) { if (!map.preloadPage(k)) break; if ((k & 7) == 0) { loadPct = k * 100 / n; present(); } }
+        try { map.preload(map.camX, map.camY); } catch (OutOfMemoryError e) { map.shrink(); System.gc(); }
+    }
     void setState(int s) { state = s; stT = 0; }
     void toMenu() {
-        stopMusic();
-        try { if (menuImg == null) menuImg = Image.createImage("/u/menu.png"); } catch (IOException e) { }
+        stopMusic(); optOpen = false; releaseRun();
+        if (menuImg == null) menuImg = img("/u/menu.png");
         setState(ST_MENU); menuSel = 0; playMusic("/a/theme.mid", true);
     }
 
@@ -872,7 +901,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
         }
     }
     void hurt(Ped q, int dmg, boolean byCar) {
-        q.health -= dmg; q.hitT = 0.25f;
+        q.health -= dmg * DMG; q.hitT = 0.25f;
         float dx = q.x - claude.x, dy = q.y - claude.y, d = (float) Math.sqrt(dx * dx + dy * dy);
         if (d > 0.01f) stepPed(q, dx / d * 3, dy / d * 3);
         if (q.health <= 0) { kill(q, byCar); return; }
@@ -927,7 +956,7 @@ public final class Game extends GameCanvas implements Runnable, PlayerListener {
     }
     void hurtPlayer(float d) {
         if (state != ST_PLAY || GOD) return;
-        d *= 0.9f;                                                  // v0.7.1: 10% less damage to the player
+        d *= 0.9f * DMG;                                            // v0.7.1: 10% less damage to the player; v0.7.8: -10% again (DMG)
         if (car != null) { car.hurt(d * 0.3f); if (car.damage >= 100 && car.fireT <= 0 && !car.wreck) car.fireT = 3.5f; health -= d * 0.25f; }
         else health -= d;
         if (health <= 0) { health = 0; if (claude.active) { addBody(claude); claude.active = false; } gameOver(); }
